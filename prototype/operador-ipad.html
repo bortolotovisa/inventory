@@ -1,0 +1,804 @@
+<title>WMS Chapas — Protótipo do Operador</title>
+<style>
+  /* ============ tokens da página (moldura) ============ */
+  :root {
+    --bg: #E7E4DE;            /* concreto quente */
+    --ink: #2A2C2E;
+    --muted: #6E6A63;
+    --chip-bg: #FFFFFF;
+    --chip-line: #CFCAC1;
+    --accent: #1D5CC9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#181A1D; --ink:#E8E6E1; --muted:#9A968E; --chip-bg:#24272B; --chip-line:#3A3E44; --accent:#6FA0EE; }
+  }
+  :root[data-theme="dark"] { --bg:#181A1D; --ink:#E8E6E1; --muted:#9A968E; --chip-bg:#24272B; --chip-line:#3A3E44; --accent:#6FA0EE; }
+  :root[data-theme="light"] { --bg:#E7E4DE; --ink:#2A2C2E; --muted:#6E6A63; --chip-bg:#FFFFFF; --chip-line:#CFCAC1; --accent:#1D5CC9; }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+  }
+  .page { max-width: 1240px; margin: 0 auto; padding: 20px 16px 48px; }
+  .page-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; margin-bottom: 4px; }
+  .page-head h1 { font-size: 20px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+  .page-head .sub { color: var(--muted); font-size: 14px; }
+  .jump { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 16px; }
+  .jump button {
+    font: 600 13px/1 system-ui, sans-serif; color: var(--ink);
+    background: var(--chip-bg); border: 1px solid var(--chip-line); border-radius: 999px;
+    padding: 8px 14px; cursor: pointer;
+  }
+  .jump button:hover { border-color: var(--accent); color: var(--accent); }
+  .jump button:focus-visible, .device :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .hint { color: var(--muted); font-size: 13px; margin: 14px 4px 0; }
+
+  /* ============ moldura do iPad ============ */
+  .stage { display: flex; justify-content: center; }
+  .frame {
+    background: #101214; border-radius: 34px; padding: 16px;
+    box-shadow: 0 24px 60px rgba(0,0,0,.28);
+    width: min(100%, 1130px);
+  }
+  .device-clip { border-radius: 18px; overflow: hidden; }
+  .device-scaler { width: 100%; }
+
+  /* ============ tokens do app (modo diurno de galpão — deliberado) ============ */
+  .device {
+    --d-bg: #F2F0EC; --d-panel: #FFFFFF; --d-ink: #21262B; --d-sub: #5C6167;
+    --d-line: #D9D4CC;
+    --d-blue: #1D5CC9; --d-blue-ink: #FFFFFF; --d-blue-tint: #E4EDFB;
+    --d-green: #1E8A4C; --d-green-tint: #E1F1E7;
+    --d-amber: #B36A00; --d-amber-tint: #F8ECD8;
+    --d-red: #C0361F;  --d-red-tint: #F9E6E1;
+    --d-dim: #EAE7E1;
+    width: 1098px; background: var(--d-bg); color: var(--d-ink);
+    font-family: system-ui, -apple-system, sans-serif;
+    display: flex; flex-direction: column; position: relative;
+    transform-origin: top left;
+  }
+  .device, .device * { -webkit-user-select: none; user-select: none; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-variant-numeric: tabular-nums; }
+
+  /* barra de status */
+  .statusbar {
+    display: flex; align-items: center; gap: 14px; padding: 10px 22px;
+    background: var(--d-panel); border-bottom: 2px solid var(--d-line);
+    font-size: 17px; font-weight: 600; color: var(--d-sub);
+  }
+  .statusbar .op { color: var(--d-ink); }
+  .statusbar .spacer { flex: 1; }
+  .wifi-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--d-green); display: inline-block; margin-right: 6px; }
+
+  /* área da tela */
+  .screenwrap { position: relative; height: 700px; }
+  .screen { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 20px 26px 24px; }
+
+  /* cabeçalho de passo */
+  .stephead { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
+  .stephead .back {
+    font: 700 20px/1 system-ui, sans-serif; color: var(--d-blue); background: none;
+    border: 2px solid var(--d-blue); border-radius: 14px; padding: 14px 20px; cursor: pointer; min-height: 56px;
+  }
+  .stephead h2 { font-size: 30px; margin: 0; flex: 1; text-align: center; letter-spacing: -0.01em; }
+  .stephead .step { font-size: 18px; font-weight: 700; color: var(--d-sub); min-width: 110px; text-align: right; }
+
+  /* grid da home */
+  .home-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; flex: 1; }
+  .bigbtn {
+    position: relative; border: 2px solid var(--d-line); border-radius: 22px;
+    background: var(--d-panel); color: var(--d-ink); cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    font: 800 28px/1.1 system-ui, sans-serif; letter-spacing: 0.02em;
+    box-shadow: 0 3px 0 rgba(33,38,43,.08);
+  }
+  .bigbtn .ico { font-size: 54px; }
+  .bigbtn:active { transform: translateY(2px); box-shadow: none; }
+  .bigbtn .badge {
+    position: absolute; top: 14px; right: 16px; min-width: 40px; height: 40px; padding: 0 10px;
+    border-radius: 999px; background: var(--d-blue); color: var(--d-blue-ink);
+    font-size: 22px; font-weight: 800; display: flex; align-items: center; justify-content: center;
+  }
+  .home-foot { margin-top: 16px; color: var(--d-sub); font-size: 18px; text-align: center; }
+
+  /* botões de ação */
+  .action {
+    min-height: 84px; border-radius: 18px; border: none; cursor: pointer;
+    font: 800 26px/1.15 system-ui, sans-serif; letter-spacing: 0.02em; padding: 14px 26px;
+  }
+  .action.primary { background: var(--d-blue); color: var(--d-blue-ink); box-shadow: 0 4px 0 #143F8C; }
+  .action.primary:active { transform: translateY(3px); box-shadow: none; }
+  .action.good { background: var(--d-green); color: #fff; box-shadow: 0 4px 0 #146034; }
+  .action.good:active { transform: translateY(3px); box-shadow: none; }
+  .action.ghost { background: var(--d-panel); color: var(--d-ink); border: 2px solid var(--d-line); min-height: 64px; font-size: 21px; font-weight: 700; }
+  .action.warnghost { background: var(--d-panel); color: var(--d-amber); border: 2px solid var(--d-amber); min-height: 64px; font-size: 21px; font-weight: 700; }
+  .action:disabled { opacity: .45; cursor: default; }
+
+  /* painel de scan */
+  .scanstage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; }
+  .scanbox {
+    width: 560px; height: 330px; border-radius: 24px; border: 4px dashed var(--d-blue);
+    background: var(--d-blue-tint); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    font-size: 27px; font-weight: 800; color: var(--d-blue); text-align: center;
+  }
+  .scanbox .cam { font-size: 60px; }
+  .simrow { display: flex; gap: 16px; }
+  .simnote { color: var(--d-sub); font-size: 16px; }
+
+  /* lista de materiais */
+  .matlist { flex: 1; display: flex; flex-direction: column; gap: 12px; overflow: auto; }
+  .matrow {
+    display: flex; align-items: center; gap: 18px; background: var(--d-panel);
+    border: 2px solid var(--d-line); border-radius: 16px; padding: 16px 20px; font-size: 22px;
+  }
+  .matrow .st { font-size: 30px; width: 44px; text-align: center; }
+  .matrow .nm { flex: 1; font-weight: 700; }
+  .matrow .qt { font-weight: 800; white-space: nowrap; }
+  .matrow .loc { color: var(--d-sub); font-size: 18px; white-space: nowrap; }
+  .matrow.missing { border-color: var(--d-red); background: var(--d-red-tint); }
+  .matrow.done { border-color: var(--d-green); background: var(--d-green-tint); }
+  .listfoot { display: flex; gap: 16px; margin-top: 16px; }
+  .listfoot .action { flex: 1; }
+
+  /* tela do mapa */
+  .maplayout { flex: 1; display: flex; gap: 20px; min-height: 0; }
+  .mapbox { flex: 1; background: var(--d-panel); border: 2px solid var(--d-line); border-radius: 18px; padding: 10px; display: flex; flex-direction: column; min-width: 0; }
+  .mapbox svg { flex: 1; width: 100%; height: 100%; }
+  .maplegend { color: var(--d-sub); font-size: 15px; text-align: center; padding: 4px 0 2px; }
+  .sidecard { width: 300px; display: flex; flex-direction: column; gap: 14px; }
+  .nextcard { background: var(--d-panel); border: 2px solid var(--d-line); border-radius: 18px; padding: 18px; text-align: center; }
+  .nextcard .lbl { font-size: 15px; font-weight: 800; letter-spacing: .08em; color: var(--d-sub); }
+  .nextcard .locbig { font-size: 44px; font-weight: 800; margin: 6px 0; }
+  .nextcard .det { font-size: 19px; color: var(--d-ink); line-height: 1.45; }
+  .nextcard .det b { font-size: 22px; }
+
+  /* stepper de quantidade */
+  .qtyrow { display: flex; align-items: center; justify-content: center; gap: 26px; }
+  .qtybtn {
+    width: 110px; height: 110px; border-radius: 24px; border: 3px solid var(--d-line);
+    background: var(--d-panel); font: 800 52px/1 system-ui, sans-serif; color: var(--d-ink); cursor: pointer;
+  }
+  .qtybtn:active { background: var(--d-dim); }
+  .qtyval { font-size: 110px; font-weight: 800; min-width: 190px; text-align: center; }
+  .qtysub { text-align: center; color: var(--d-sub); font-size: 20px; margin-top: 4px; }
+
+  /* banners */
+  .banner { border-radius: 16px; padding: 16px 20px; font-size: 21px; font-weight: 700; display: flex; gap: 14px; align-items: center; }
+  .banner.ok { background: var(--d-green-tint); color: var(--d-green); border: 2px solid var(--d-green); }
+  .banner.warn { background: var(--d-amber-tint); color: var(--d-amber); border: 2px solid var(--d-amber); }
+  .banner.err { background: var(--d-red-tint); color: var(--d-red); border: 2px solid var(--d-red); }
+  .banner .fix { font-weight: 600; color: var(--d-ink); }
+
+  /* tiles de escolha (extra) */
+  .tilegrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; flex: 1; align-content: start; overflow: auto; }
+  .tile {
+    border: 2px solid var(--d-line); border-radius: 16px; background: var(--d-panel);
+    padding: 20px; font: 700 22px/1.3 system-ui, sans-serif; color: var(--d-ink);
+    cursor: pointer; text-align: left; display: flex; align-items: center; gap: 16px; min-height: 84px;
+  }
+  .tile .sw { width: 44px; height: 44px; border-radius: 10px; border: 1px solid rgba(0,0,0,.15); flex: none; }
+  .tile.sel { border-color: var(--d-blue); background: var(--d-blue-tint); }
+  .tile .sub { display: block; font-size: 16px; font-weight: 600; color: var(--d-sub); }
+
+  /* resumo */
+  .sumlist { flex: 1; display: flex; flex-direction: column; gap: 10px; overflow: auto; }
+  .kpi { display: flex; gap: 14px; margin-top: 14px; }
+  .kpi > div { flex: 1; background: var(--d-panel); border: 2px solid var(--d-line); border-radius: 14px; padding: 12px; text-align: center; }
+  .kpi .n { font-size: 34px; font-weight: 800; }
+  .kpi .l { font-size: 15px; color: var(--d-sub); font-weight: 700; }
+
+  /* folha de simulação de scan */
+  .sheet {
+    position: absolute; inset: 0; background: rgba(20,22,25,.45);
+    display: flex; align-items: flex-end; justify-content: center; z-index: 30;
+  }
+  .sheet-inner {
+    background: var(--d-panel); border-radius: 24px 24px 0 0; padding: 24px 28px 30px;
+    width: 640px; display: flex; flex-direction: column; gap: 14px;
+  }
+  .sheet-inner h3 { margin: 0 0 4px; font-size: 22px; text-align: center; }
+  .sheet-inner .simnote { text-align: center; }
+
+  /* flash de feedback do scan */
+  .flash { position: absolute; inset: 0; pointer-events: none; z-index: 40; opacity: 0; border-radius: 0; }
+  .flash.ok { box-shadow: inset 0 0 0 14px var(--d-green); animation: flashfade .55s ease-out; }
+  .flash.err { box-shadow: inset 0 0 0 14px var(--d-red); animation: flashfade .55s ease-out; }
+  @keyframes flashfade { 0% { opacity: 1; } 100% { opacity: 0; } }
+
+  .toast {
+    position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%);
+    background: #23282D; color: #fff; font-size: 19px; font-weight: 700;
+    padding: 14px 24px; border-radius: 999px; opacity: 0; transition: opacity .25s; z-index: 50;
+    max-width: 84%; text-align: center; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+
+  /* mapa svg */
+  .rack { fill: #CFC8BB; stroke: #A79E8D; stroke-width: 1; }
+  .bay-occ { fill: #97A6BC; }
+  .zone-lbl { font: 800 13px system-ui, sans-serif; fill: #8A8478; letter-spacing: .12em; }
+  .rua-lbl { font: 800 15px system-ui, sans-serif; fill: #6B6455; }
+  .poi { fill: #E4E0D8; stroke: #A79E8D; }
+  .poi-lbl { font: 700 11px system-ui, sans-serif; fill: #6B6455; }
+  .route { fill: none; stroke: var(--d-blue); stroke-width: 5; stroke-linejoin: round; stroke-linecap: round; stroke-dasharray: 12 10; animation: dash 1.6s linear infinite; }
+  @keyframes dash { to { stroke-dashoffset: -22; } }
+  .pick-pending { fill: #B9B2A4; }
+  .pick-done { fill: var(--d-green); }
+  .pick-cur { fill: var(--d-blue); }
+  .pick-num { font: 800 15px system-ui, sans-serif; fill: #fff; text-anchor: middle; dominant-baseline: central; }
+  .pulse { fill: none; stroke: var(--d-blue); stroke-width: 3; transform-box: fill-box; transform-origin: center; animation: pulse 1.4s ease-out infinite; }
+  @keyframes pulse { 0% { transform: scale(.6); opacity: 1; } 100% { transform: scale(1.9); opacity: 0; } }
+  .you { fill: var(--d-amber); stroke: #fff; stroke-width: 2.5; }
+  .you-lbl { font: 700 12px system-ui, sans-serif; fill: var(--d-amber); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .route, .pulse { animation: none; }
+    .flash.ok, .flash.err { animation: none; opacity: 0; }
+  }
+</style>
+
+<div class="page">
+  <header class="page-head">
+    <h1>WMS Chapas — Protótipo do app do operador</h1>
+    <span class="sub">iPad na empilhadeira · fluxos do doc 06 · scans simulados por botão</span>
+  </header>
+  <nav class="jump" aria-label="Atalhos de fluxo">
+    <button data-jump="home">⌂ Início</button>
+    <button data-jump="ret-scan">Retirada (WO)</button>
+    <button data-jump="put-fila">Guarda</button>
+    <button data-jump="extra-mat">Pedido extra</button>
+    <button data-jump="inv-pos">Inventário</button>
+    <button data-jump="__reset">↺ Reiniciar demo</button>
+    <button id="mute">🔊 Som: ligado</button>
+  </nav>
+
+  <div class="stage">
+    <div class="frame">
+      <div class="device-clip">
+        <div class="device-scaler" id="scaler">
+          <div class="device" id="device">
+            <div class="statusbar">
+              <span class="op">👤 Carlos Silva · EMP-01</span>
+              <span class="spacer"></span>
+              <span><span class="wifi-dot"></span>Wi-Fi</span>
+              <span class="mono">14:02</span>
+            </div>
+            <div class="screenwrap">
+              <div class="screen" id="screen"></div>
+              <div class="flash" id="flash"></div>
+              <div class="toast" id="toast"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="hint">Como o navegador não acessa a câmera aqui, cada tela de leitura oferece botões “simular scan” — inclusive o scan <em>errado</em>, para ver o tratamento de erro com instrução de correção. No app real, a leitura é pela câmera do iPad ou por scanner Bluetooth no suporte da empilhadeira.</p>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------------- estado da demo ---------------- */
+  const initial = () => ({
+    wo: {
+      number: 'WO-8841', project: 'Cozinha Fam. Souza',
+      picks: [
+        { n: 1, mat: 'MDF Branco TX 15mm', pallet: 'PLT-003990', saldo: 18, qty: 2, loc: 'A-01-N0', x: 138, y: 62,  done: false, confirmed: 0 },
+        { n: 2, mat: 'MDF Branco TX 18mm', pallet: 'PLT-004102', saldo: 12, qty: 4, loc: 'B-02-N0', x: 138, y: 92,  done: false, confirmed: 0 },
+        { n: 3, mat: 'MDF Carvalho 18mm',  pallet: 'PLT-004217', saldo: 42, qty: 6, loc: 'C-07-N0', x: 228, y: 192, done: false, confirmed: 0 }
+      ],
+      missing: { mat: 'Fórmica Preta 0.8mm', qty: 3 }
+    },
+    cur: 0,
+    qty: 0,
+    putQueue: [
+      { pallet: 'PLT-004350', mat: 'MDF Branco TX 18mm', qty: 48, sug: 'B-04-N0', sx: 138, sy: 132, why: 'Perto dos outros 3 pallets de Branco TX 18' },
+      { pallet: 'PLT-004351', mat: 'MDF Carvalho 18mm', qty: 36, sug: 'C-03-N0', sx: 228, sy: 112, why: 'Classe A — a 40 m da seccionadora' }
+    ],
+    putDone: 0,
+    extra: { mat: null, qty: 1, reason: null },
+    inv: { pos: 'A-09-N1', pallet: 'PLT-003812', mat: 'MDF Cinza 15mm', expected: 17, qty: 17, posOk: false, palOk: false }
+  });
+  let S = initial();
+
+  /* ---------------- utilidades ---------------- */
+  const $ = (sel) => document.querySelector(sel);
+  const screen = $('#screen');
+  let muted = false;
+
+  function beep(kind) {
+    if (muted) return;
+    try {
+      const ctx = beep.ctx || (beep.ctx = new (window.AudioContext || window.webkitAudioContext)());
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = kind === 'ok' ? 880 : 200;
+      g.gain.setValueAtTime(0.12, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.22);
+      o.start(); o.stop(ctx.currentTime + 0.22);
+    } catch (e) { /* sem áudio, sem drama */ }
+  }
+  function flash(kind) {
+    const f = $('#flash');
+    f.className = 'flash';
+    void f.offsetWidth;
+    f.classList.add(kind);
+    beep(kind === 'ok' ? 'ok' : 'err');
+  }
+  let toastTimer;
+  function toast(msg, ms) {
+    const t = $('#toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), ms || 2600);
+  }
+
+  /* ---------------- mapa SVG (gerado da “planta digital”) ---------------- */
+  const RUAS = [
+    { id: 'A', x: 80 }, { id: 'B', x: 170 }, { id: 'C', x: 260 }, { id: 'D', x: 350 }
+  ];
+  const OCC = { A: [2, 4, 5, 8, 10], B: [1, 3, 4, 6, 9], C: [2, 3, 6, 8, 11], D: [1, 5, 7] }; // baias ocupadas (cenário)
+
+  function mapSVG(opts) {
+    const picks = opts.picks || [];
+    const route = opts.route || [];
+    const you = opts.you || null;
+    let s = '<svg viewBox="0 0 480 310" role="img" aria-label="Mapa do armazém">';
+    // docas e seccionadora
+    s += '<rect class="poi" x="6" y="52" width="30" height="44" rx="4"/><text class="poi-lbl" x="21" y="76" text-anchor="middle">DOCA</text>';
+    s += '<rect class="poi" x="6" y="110" width="30" height="44" rx="4"/><text class="poi-lbl" x="21" y="134" text-anchor="middle">DOCA</text>';
+    s += '<rect class="poi" x="432" y="120" width="42" height="64" rx="4"/><text class="poi-lbl" x="453" y="150" text-anchor="middle">SECC.</text>';
+    s += '<text class="zone-lbl" x="240" y="20" text-anchor="middle">ESTOCAGEM DE CHAPAS</text>';
+    // ruas com baias
+    for (const r of RUAS) {
+      s += `<text class="rua-lbl" x="${r.x + 13}" y="44" text-anchor="middle">${r.id}</text>`;
+      for (let b = 1; b <= 11; b++) {
+        const y = 50 + (b - 1) * 20;
+        const occ = OCC[r.id].includes(b);
+        s += `<rect class="rack${occ ? ' bay-occ' : ''}" x="${r.x}" y="${y}" width="26" height="18" rx="2"/>`;
+      }
+    }
+    // rota
+    if (route.length) {
+      s += `<polyline class="route" points="${route.map(p => p.join(',')).join(' ')}"/>`;
+    }
+    // posição do operador
+    if (you) {
+      s += `<circle class="you" cx="${you[0]}" cy="${you[1]}" r="8"/><text class="you-lbl" x="${you[0]}" y="${you[1] - 13}" text-anchor="middle">você</text>`;
+    }
+    // marcadores de pick
+    for (const p of picks) {
+      if (p.state === 'cur') s += `<circle class="pulse" cx="${p.x}" cy="${p.y}" r="13"/>`;
+      s += `<circle class="pick-${p.state}" cx="${p.x}" cy="${p.y}" r="13"/>`;
+      s += `<text class="pick-num" x="${p.x}" y="${p.y + 1}">${p.state === 'done' ? '✓' : p.n}</text>`;
+    }
+    s += '</svg>';
+    return s;
+  }
+
+  function pickRoute(fromIdx) {
+    // rota fixa da demo: doca → lane A/B → fundo → lane B/C → seccionadora
+    const full = [[21, 74], [21, 34], [138, 34], [138, 62], [138, 92], [138, 288], [228, 288], [228, 192], [228, 288], [450, 288], [450, 186]];
+    return full;
+  }
+
+  /* ---------------- telas ---------------- */
+  const T = {};
+
+  T.home = () => `
+    <div class="home-grid">
+      ${homeBtn('put-fila', '📦', 'GUARDAR', S.putQueue.length - S.putDone)}
+      ${homeBtn('ret-scan', '🏗️', 'RETIRAR', S.wo.picks.every(p => p.done) ? 0 : 1)}
+      ${homeBtn('__consultar', '🔍', 'CONSULTAR', 0)}
+      ${homeBtn('__devolver', '↩️', 'DEVOLVER', 0)}
+      ${homeBtn('__mover', '🔄', 'MOVER', 0)}
+      ${homeBtn('inv-pos', '📋', 'INVENTÁRIO', S.inv.posOk && S.inv.palOk ? 0 : 1)}
+    </div>
+    <div class="home-foot">▸ Escaneie qualquer etiqueta a qualquer momento para consultar</div>`;
+
+  function homeBtn(go, ico, label, badge) {
+    return `<button class="bigbtn" data-go="${go}">
+      ${badge ? `<span class="badge">${badge}</span>` : ''}
+      <span class="ico">${ico}</span><span>${label}</span>
+    </button>`;
+  }
+
+  /* ---- retirada ---- */
+  T['ret-scan'] = () => `
+    ${head('home', 'RETIRAR', 'Passo 1 de 4')}
+    <div class="scanstage">
+      <div class="scanbox"><span class="cam">📷</span>APONTE PARA O QR<br>DA ORDEM (WO)</div>
+      <div class="simrow">
+        <button class="action primary" data-act="scan-wo">▶ Simular leitura da WO-8841</button>
+      </div>
+      <button class="action ghost" data-act="nada">Não consigo escanear</button>
+    </div>`;
+
+  T['ret-lista'] = () => {
+    const rows = S.wo.picks.map(p => `
+      <div class="matrow${p.done ? ' done' : ''}">
+        <span class="st">${p.done ? '✅' : '⬜'}</span>
+        <span class="nm">${p.mat}</span>
+        <span class="qt">${p.qty} chapas</span>
+        <span class="loc mono">${p.loc.slice(0, 4)} · ${p.pallet}</span>
+      </div>`).join('');
+    const allDone = S.wo.picks.every(p => p.done);
+    return `
+      ${head('home', `${S.wo.number} · ${S.wo.project}`, 'Passo 2 de 4')}
+      <div class="matlist">
+        ${rows}
+        <div class="matrow missing">
+          <span class="st">🟥</span>
+          <span class="nm">${S.wo.missing.mat}</span>
+          <span class="qt">EM FALTA</span>
+          <span class="loc">aviso enviado ao PCP</span>
+        </div>
+      </div>
+      <div class="listfoot">
+        <button class="action warnghost" data-go="extra-mat">＋ PEDIR MAIS MATERIAL</button>
+        <button class="action primary" data-act="start-route" ${allDone ? 'disabled' : ''}>${allDone ? 'SEPARAÇÃO CONCLUÍDA' : '▶ INICIAR ROTA'}</button>
+      </div>`;
+  };
+
+  T['ret-mapa'] = () => {
+    const cur = S.wo.picks[S.cur];
+    const picks = S.wo.picks.map((p, i) => ({ n: p.n, x: p.x, y: p.y, state: p.done ? 'done' : (i === S.cur ? 'cur' : 'pending') }));
+    return `
+      ${head('ret-lista', `${S.cur + 1} de ${S.wo.picks.length} · ${cur.mat}`, `retirar ${cur.qty}`)}
+      <div class="maplayout">
+        <div class="mapbox">
+          ${mapSVG({ picks, route: pickRoute(S.cur), you: [21, 74] })}
+          <div class="maplegend">🟦 próximo (pulsando) · 🟩 concluído · rota tracejada até a seccionadora</div>
+        </div>
+        <div class="sidecard">
+          <div class="nextcard">
+            <div class="lbl">PRÓXIMO</div>
+            <div class="locbig mono">${cur.loc.slice(0, 4)}</div>
+            <div class="det"><b class="mono">${cur.pallet}</b><br>${cur.mat}<br>retirar <b>${cur.qty} chapas</b> · nível chão</div>
+          </div>
+          <button class="action primary" data-act="open-scan-pallet">📷 ESCANEAR PALLET</button>
+          <button class="action warnghost" data-act="problema">⚠ PROBLEMA NA POSIÇÃO</button>
+        </div>
+      </div>`;
+  };
+
+  T['ret-qtd'] = () => {
+    const cur = S.wo.picks[S.cur];
+    return `
+      ${head('ret-mapa', 'CONFIRMAR RETIRADA', 'Passo 3 de 4')}
+      <div class="banner ok" style="margin-bottom:18px">✅ <span class="mono">${cur.pallet}</span> · ${cur.mat} · saldo ${cur.saldo}</div>
+      <div class="scanstage" style="gap:14px">
+        <div style="font-size:26px;font-weight:700">Quantas chapas você retirou?</div>
+        <div class="qtyrow">
+          <button class="qtybtn" data-act="qty--" aria-label="menos uma">−</button>
+          <div class="qtyval mono" id="qtyval">${S.qty}</div>
+          <button class="qtybtn" data-act="qty++" aria-label="mais uma">＋</button>
+        </div>
+        <div class="qtysub">(pedido: ${cur.qty} chapas)</div>
+        <button class="action good" style="width:560px" data-act="confirm-pick">✔ CONFIRMAR RETIRADA</button>
+      </div>`;
+  };
+
+  T['ret-resumo'] = () => {
+    const rows = S.wo.picks.map(p => `
+      <div class="matrow done">
+        <span class="st">✅</span><span class="nm">${p.mat}</span>
+        <span class="qt">${p.confirmed} de ${p.qty}</span>
+        <span class="loc mono">${p.pallet}</span>
+      </div>`).join('');
+    return `
+      ${head('home', 'SEPARAÇÃO CONCLUÍDA', 'Passo 4 de 4')}
+      <div class="banner ok" style="margin-bottom:14px">✅ ${S.wo.number} separada · estoque atualizado automaticamente · WO segue para corte</div>
+      <div class="sumlist">${rows}
+        <div class="matrow missing"><span class="st">🟥</span><span class="nm">${S.wo.missing.mat}</span><span class="qt">pendente</span><span class="loc">status: PARCIAL</span></div>
+      </div>
+      <div class="kpi">
+        <div><div class="n">12</div><div class="l">chapas retiradas</div></div>
+        <div><div class="n">96 m</div><div class="l">rota percorrida</div></div>
+        <div><div class="n">3</div><div class="l">scans confirmados</div></div>
+      </div>
+      <div class="listfoot"><button class="action primary" data-go="home">⌂ VOLTAR AO INÍCIO</button></div>`;
+  };
+
+  /* ---- guarda ---- */
+  T['put-fila'] = () => {
+    const rows = S.putQueue.map((p, i) => `
+      <div class="matrow${i < S.putDone ? ' done' : ''}">
+        <span class="st">${i < S.putDone ? '✅' : '📦'}</span>
+        <span class="nm">${p.mat} <span class="loc">· ${p.qty} chapas · recebido hoje</span></span>
+        <span class="loc mono">${p.pallet}</span>
+      </div>`).join('');
+    const left = S.putQueue.length - S.putDone;
+    return `
+      ${head('home', 'GUARDAR — FILA DA DOCA', `${left} pendente${left === 1 ? '' : 's'}`)}
+      <div class="matlist">${rows}</div>
+      <div class="listfoot">
+        <button class="action primary" data-act="put-scan-pallet" ${left ? '' : 'disabled'}>${left ? '📷 ESCANEAR O PRÓXIMO PALLET' : 'FILA CONCLUÍDA ✅'}</button>
+      </div>`;
+  };
+
+  T['put-sugestao'] = () => {
+    const p = S.putQueue[S.putDone];
+    return `
+      ${head('put-fila', `GUARDAR ${p.pallet}`, 'Passo 2 de 3')}
+      <div class="maplayout">
+        <div class="mapbox">
+          ${mapSVG({ picks: [{ n: '★', x: p.sx, y: p.sy, state: 'cur' }], route: [[21, 74], [21, 34], [p.sx, 34], [p.sx, p.sy]], you: [21, 74] })}
+          <div class="maplegend">rota da doca até a posição sugerida</div>
+        </div>
+        <div class="sidecard">
+          <div class="nextcard">
+            <div class="lbl">LEVE PARA</div>
+            <div class="locbig mono">${p.sug.slice(0, 4)}</div>
+            <div class="det">${p.mat}<br>${p.qty} chapas<br><span style="color:var(--d-sub)">ℹ ${p.why}</span></div>
+          </div>
+          <button class="action good" data-act="put-scan-loc-ok">📍 ESCANEAR ETIQUETA<br>DA POSIÇÃO ${p.sug.slice(0, 4)}</button>
+          <button class="action ghost" data-act="put-scan-loc-other">Escanear outro endereço (B-06)</button>
+        </div>
+      </div>`;
+  };
+
+  /* ---- pedido extra ---- */
+  const EXTRA_MATS = [
+    { nm: 'MDF Branco TX 18mm', sw: '#F4F2ED', sub: '2750×1850 · 214 em estoque' },
+    { nm: 'MDF Carvalho 18mm', sw: '#B98A5A', sub: '2750×1850 · 96 em estoque' },
+    { nm: 'MDF Branco TX 15mm', sw: '#F4F2ED', sub: '2750×1850 · 61 em estoque' },
+    { nm: 'MDF Cinza Sagrado 15mm', sw: '#9AA0A3', sub: '2750×1850 · 44 em estoque' }
+  ];
+  const EXTRA_REASONS = ['ERRO DE CORTE', 'AVARIA NO PROCESSO', 'QUALIDADE DO MATERIAL', 'AJUSTE DE PROJETO', 'OUTRO'];
+
+  T['extra-mat'] = () => `
+    ${head('ret-lista', `PEDIDO EXTRA · vinculado à ${S.wo.number}`, 'Passo 1 de 3')}
+    <div class="tilegrid">
+      ${EXTRA_MATS.map((m, i) => `
+        <button class="tile${S.extra.mat === i ? ' sel' : ''}" data-act="extra-mat-${i}">
+          <span class="sw" style="background:${m.sw}"></span>
+          <span>${m.nm}<span class="sub">${m.sub}</span></span>
+        </button>`).join('')}
+    </div>
+    <div class="listfoot">
+      <button class="action primary" data-go="extra-qtd" ${S.extra.mat === null ? 'disabled' : ''}>CONTINUAR ▶</button>
+    </div>`;
+
+  T['extra-qtd'] = () => `
+    ${head('extra-mat', 'QUANTAS CHAPAS A MAIS?', 'Passo 2 de 3')}
+    <div class="scanstage" style="gap:14px">
+      <div style="font-size:24px;font-weight:700">${EXTRA_MATS[S.extra.mat].nm}</div>
+      <div class="qtyrow">
+        <button class="qtybtn" data-act="exqty--">−</button>
+        <div class="qtyval mono">${S.extra.qty}</div>
+        <button class="qtybtn" data-act="exqty++">＋</button>
+      </div>
+      <div class="qtysub">acima de 2 chapas o pedido vai para aprovação do supervisor</div>
+      <button class="action primary" style="width:560px" data-go="extra-motivo">CONTINUAR ▶</button>
+    </div>`;
+
+  T['extra-motivo'] = () => `
+    ${head('extra-qtd', 'POR QUE PRECISA DE MAIS?', 'Passo 3 de 3')}
+    <div class="matlist" style="gap:14px">
+      ${EXTRA_REASONS.map(r => `<button class="tile" style="width:100%" data-act="extra-send" data-reason="${r}"><span style="font-size:26px">▸</span><span>${r}</span></button>`).join('')}
+    </div>`;
+
+  T['extra-ok'] = () => {
+    const needsApproval = S.extra.qty > 2;
+    return `
+      ${head('ret-lista', 'PEDIDO EXTRA ENVIADO', '')}
+      <div class="scanstage">
+        <div class="banner ${needsApproval ? 'warn' : 'ok'}" style="max-width:720px">
+          ${needsApproval
+            ? `⏳ ${S.extra.qty} chapas de ${EXTRA_MATS[S.extra.mat].nm} — aguardando aprovação do supervisor (acima do limite de 2). Motivo: ${S.extra.reason}. Você será avisado aqui no iPad.`
+            : `✅ ${S.extra.qty} chapa de ${EXTRA_MATS[S.extra.mat].nm} aprovada automaticamente. Tarefa de retirada adicionada à ${S.wo.number}. Motivo: ${S.extra.reason}.`}
+        </div>
+        <div class="simnote">O custo fica registrado no projeto da ${S.wo.number} e o motivo alimenta o painel de perdas.</div>
+        <button class="action primary" style="width:480px" data-go="ret-lista">VOLTAR À LISTA DA WO</button>
+      </div>`;
+  };
+
+  /* ---- inventário ---- */
+  T['inv-pos'] = () => `
+    ${head('home', 'CONTAGEM CÍCLICA · 1 de 1 hoje', 'Passo 1 de 3')}
+    <div class="scanstage">
+      <div style="font-size:26px;font-weight:700">Vá até <span class="mono" style="font-size:34px">${S.inv.pos.slice(0, 4)}</span> e escaneie a etiqueta da POSIÇÃO</div>
+      <div class="scanbox"><span class="cam">📷</span>ESCANEIE A POSIÇÃO</div>
+      <button class="action primary" data-act="inv-scan-pos">▶ Simular scan da posição ${S.inv.pos.slice(0, 4)}</button>
+    </div>`;
+
+  T['inv-pallet'] = () => `
+    ${head('inv-pos', 'CONTAGEM · POSIÇÃO OK ✅', 'Passo 2 de 3')}
+    <div class="scanstage">
+      <div style="font-size:26px;font-weight:700">Agora escaneie o PALLET que está em ${S.inv.pos.slice(0, 4)}</div>
+      <div class="scanbox"><span class="cam">📷</span>ESCANEIE O PALLET</div>
+      <button class="action primary" data-act="inv-scan-pal">▶ Simular scan do ${S.inv.pallet}</button>
+    </div>`;
+
+  T['inv-qtd'] = () => `
+    ${head('inv-pallet', 'QUANTAS CHAPAS VOCÊ CONTA?', 'Passo 3 de 3')}
+    <div class="banner ok" style="margin-bottom:16px">✅ <span class="mono">${S.inv.pallet}</span> · ${S.inv.mat}</div>
+    <div class="scanstage" style="gap:14px">
+      <div class="qtyrow">
+        <button class="qtybtn" data-act="invqty--">−</button>
+        <div class="qtyval mono">${S.inv.qty}</div>
+        <button class="qtybtn" data-act="invqty++">＋</button>
+      </div>
+      <div class="qtysub">contagem cega — o sistema não mostra o valor esperado, para não enviesar 😉</div>
+      <button class="action good" style="width:560px" data-act="inv-confirm">✔ CONFIRMAR CONTAGEM</button>
+    </div>`;
+
+  T['inv-fim'] = () => {
+    const match = S.inv.qty === S.inv.expected;
+    return `
+      ${head('home', 'CONTAGEM REGISTRADA', '')}
+      <div class="scanstage">
+        <div class="banner ${match ? 'ok' : 'warn'}" style="max-width:720px">
+          ${match
+            ? '✅ Contagem bate com o sistema. Nada mais por hoje — obrigado!'
+            : `⚠ Divergência registrada (você contou ${S.inv.qty}). Uma recontagem cega será pedida a outro operador antes de qualquer ajuste — e o ajuste ainda passa pelo supervisor.`}
+        </div>
+        <button class="action primary" style="width:480px" data-go="home">⌂ VOLTAR AO INÍCIO</button>
+      </div>`;
+  };
+
+  function head(back, title, step) {
+    return `<div class="stephead">
+      <button class="back" data-go="${back}">← ${back === 'home' ? 'Sair' : 'Voltar'}</button>
+      <h2>${title}</h2><span class="step">${step}</span>
+    </div>`;
+  }
+
+  /* ---------------- folha de simulação de scan ---------------- */
+  function scanSheet(title, options) {
+    const old = $('.sheet'); if (old) old.remove();
+    const el = document.createElement('div');
+    el.className = 'sheet';
+    el.innerHTML = `<div class="sheet-inner">
+      <h3>${title}</h3>
+      <div class="simnote">No app real, este passo é a câmera/scanner — aqui você escolhe o resultado:</div>
+      ${options.map((o, i) => `<button class="action ${o.kind}" data-sheet="${i}">${o.label}</button>`).join('')}
+      <button class="action ghost" data-sheet="-1">Cancelar</button>
+    </div>`;
+    $('.screenwrap').appendChild(el);
+    el.addEventListener('click', (ev) => {
+      const b = ev.target.closest('[data-sheet]');
+      if (!b) { if (ev.target === el) el.remove(); return; }
+      const i = parseInt(b.dataset.sheet, 10);
+      el.remove();
+      if (i >= 0) options[i].run();
+    });
+  }
+
+  /* ---------------- navegação e ações ---------------- */
+  function go(name) {
+    screen.innerHTML = T[name]();
+    screen.dataset.name = name;
+  }
+
+  const acts = {
+    'nada': () => toast('Fallback do app real: busca da WO por número, com teclado grande.'),
+    'scan-wo': () => { flash('ok'); go('ret-lista'); toast('WO-8841 carregada · 3 materiais alocados, 1 em falta'); },
+    'start-route': () => go('ret-mapa'),
+    'problema': () => scanSheet('O que aconteceu na posição?', [
+      { label: 'PALLET NÃO ESTÁ AQUI', kind: 'warnghost', run: () => toast('Exceção registrada · contagem dirigida criada · realocando outro pallet…') },
+      { label: 'ACESSO BLOQUEADO', kind: 'warnghost', run: () => toast('Rota re-sequenciada — esta posição ficou para o fim.') },
+      { label: 'PALLET AVARIADO', kind: 'warnghost', run: () => toast('Pallet enviado à quarentena · ocorrência aberta · realocando…') }
+    ]),
+    'open-scan-pallet': () => {
+      const cur = S.wo.picks[S.cur];
+      scanSheet(`Escanear pallet em ${cur.loc.slice(0, 4)}`, [
+        { label: `✔ Simular leitura do ${cur.pallet} (correto)`, kind: 'good', run: () => { flash('ok'); S.qty = cur.qty; go('ret-qtd'); } },
+        { label: '✖ Simular leitura de PLT-003555 (errado)', kind: 'warnghost', run: () => {
+            flash('err');
+            const b = document.createElement('div');
+            b.className = 'banner err'; b.style.margin = '0 0 14px';
+            b.innerHTML = `⛔ PLT-003555 não é desta ordem. <span class="fix">O correto é o <b class="mono">${cur.pallet}</b>, nesta mesma posição ${cur.loc.slice(0, 4)} — confira a etiqueta da frente.</span>`;
+            screen.insertBefore(b, screen.children[1]);
+            setTimeout(() => b.remove(), 5200);
+          } }
+      ]);
+    },
+    'qty--': () => { if (S.qty > 0) { S.qty--; $('#qtyval').textContent = S.qty; } },
+    'qty++': () => { const cur = S.wo.picks[S.cur]; if (S.qty < cur.saldo) { S.qty++; $('#qtyval').textContent = S.qty; } },
+    'confirm-pick': () => {
+      const cur = S.wo.picks[S.cur];
+      if (S.qty !== cur.qty) {
+        scanSheet(`Você confirmou ${S.qty}, o pedido era ${cur.qty}. Por quê?`, [
+          { label: 'PALLET COM MENOS CHAPAS', kind: 'warnghost', run: () => finishPick('saldo do pallet corrigido · restante realocado') },
+          { label: 'CHAPA AVARIADA', kind: 'warnghost', run: () => finishPick('avaria registrada · reposição realocada') },
+          { label: 'OUTRO MOTIVO', kind: 'ghost', run: () => finishPick('exceção registrada para o supervisor') }
+        ]);
+      } else finishPick();
+    },
+    'put-scan-pallet': () => {
+      const p = S.putQueue[S.putDone];
+      scanSheet('Escanear o pallet na doca', [
+        { label: `✔ Simular leitura do ${p.pallet}`, kind: 'good', run: () => { flash('ok'); go('put-sugestao'); } }
+      ]);
+    },
+    'put-scan-loc-ok': () => {
+      const p = S.putQueue[S.putDone];
+      flash('ok'); S.putDone++;
+      go(S.putDone < S.putQueue.length ? 'put-fila' : 'put-fila');
+      toast(`✅ ${p.pallet} guardado em ${p.sug.slice(0, 4)} · estoque atualizado`);
+    },
+    'put-scan-loc-other': () => {
+      const p = S.putQueue[S.putDone];
+      scanSheet('B-06 também é válido e está livre. Confirmar aqui?', [
+        { label: 'SIM, GUARDAR EM B-06', kind: 'good', run: () => { flash('ok'); S.putDone++; go('put-fila'); toast(`✅ ${p.pallet} guardado em B-06 (override registrado — a IA aprende com isso)`); } },
+        { label: 'NÃO, VER A SUGESTÃO DE NOVO', kind: 'ghost', run: () => go('put-sugestao') }
+      ]);
+    },
+    'exqty--': () => { if (S.extra.qty > 1) { S.extra.qty--; go('extra-qtd'); } },
+    'exqty++': () => { if (S.extra.qty < 20) { S.extra.qty++; go('extra-qtd'); } },
+    'extra-send': null, // tratado abaixo (precisa do data-reason)
+    'inv-scan-pos': () => { flash('ok'); S.inv.posOk = true; go('inv-pallet'); },
+    'inv-scan-pal': () => { flash('ok'); S.inv.palOk = true; go('inv-qtd'); },
+    'invqty--': () => { if (S.inv.qty > 0) { S.inv.qty--; go('inv-qtd'); } },
+    'invqty++': () => { S.inv.qty++; go('inv-qtd'); },
+    'inv-confirm': () => { flash('ok'); go('inv-fim'); }
+  };
+
+  function finishPick(extraMsg) {
+    const cur = S.wo.picks[S.cur];
+    cur.done = true; cur.confirmed = S.qty;
+    flash('ok');
+    const next = S.wo.picks.findIndex(p => !p.done);
+    if (next === -1) { go('ret-resumo'); }
+    else {
+      S.cur = next;
+      go('ret-mapa');
+      toast(`✅ Estoque atualizado · saldo do ${cur.pallet}: ${cur.saldo - S.qty}${extraMsg ? ' · ' + extraMsg : ''} · próximo: ${S.wo.picks[next].loc.slice(0, 4)}`, 3400);
+    }
+  }
+
+  screen.addEventListener('click', (ev) => {
+    const goBtn = ev.target.closest('[data-go]');
+    if (goBtn && !goBtn.disabled) { go(goBtn.dataset.go); return; }
+    const actBtn = ev.target.closest('[data-act]');
+    if (!actBtn || actBtn.disabled) return;
+    const a = actBtn.dataset.act;
+    if (a.startsWith('extra-mat-')) { S.extra.mat = parseInt(a.slice(10), 10); go('extra-mat'); return; }
+    if (a === 'extra-send') { S.extra.reason = actBtn.dataset.reason; go('extra-ok'); flash('ok'); return; }
+    if (acts[a]) acts[a]();
+  });
+
+  /* atalhos da moldura */
+  document.querySelector('.jump').addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-jump]');
+    if (!b) return;
+    const j = b.dataset.jump;
+    if (j === '__reset') { S = initial(); go('home'); toast('Demo reiniciada'); return; }
+    go(j);
+  });
+  $('#mute').addEventListener('click', () => {
+    muted = !muted;
+    $('#mute').textContent = muted ? '🔇 Som: mudo' : '🔊 Som: ligado';
+  });
+
+  /* consultar / devolver / mover: fora deste protótipo */
+  const NOT_IN_PROTO = { '__consultar': 'Consulta avulsa', '__devolver': 'Devolução', '__mover': 'Movimentação' };
+  const origGo = go;
+  go = function (name) {
+    if (NOT_IN_PROTO[name]) { toast(`${NOT_IN_PROTO[name]}: fluxo especificado no doc 06, fora deste protótipo.`); return; }
+    origGo(name);
+  };
+
+  /* escala do device para caber na moldura */
+  const device = $('#device'), scaler = $('#scaler');
+  function fit() {
+    const w = scaler.clientWidth;
+    const s = w / 1098;
+    device.style.transform = `scale(${s})`;
+    scaler.style.height = `${device.offsetHeight * s}px`;
+  }
+  window.addEventListener('resize', fit);
+
+  go('home');
+  fit();
+})();
+</script>
